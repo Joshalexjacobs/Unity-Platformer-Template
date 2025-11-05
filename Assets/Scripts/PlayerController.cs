@@ -41,10 +41,14 @@ public class PlayerController : MonoBehaviour {
   private int _wallClingingDirection = 0;
 
   private float _wallClingTimer = 0f;
+
+  private bool _headBump = false;
   
   [SerializeField] private LayerMask _groundMask;
   
   [SerializeField] private LayerMask _wallClingMask;
+  
+  [SerializeField] private LayerMask _headBumpMask;
 
   private int _layerBeneath = -1;
   
@@ -91,8 +95,7 @@ public class PlayerController : MonoBehaviour {
   private void TriggerJump() {
     _jumps++;
     
-    if (_jumps >= _maxJumps)
-      _canTriggerNewJump = false;
+    _canTriggerNewJump = false;
     
     _playerState = PlayerState.Jumping;
         
@@ -103,7 +106,11 @@ public class PlayerController : MonoBehaviour {
 
   private float HandleJump() {
     if (_playerState == PlayerState.WallClinging) {
-      return _rigidbody2D.linearVelocity.y / 2;
+      return _rigidbody2D.linearVelocity.y / 1.5f;
+    }
+
+    if (_headBump) {
+      return -Mathf.Abs(_rigidbody2D.linearVelocity.y);
     }
     
     if (ControllerUtils.IsButtonDown(_jumpButtonControls)) {
@@ -170,6 +177,8 @@ public class PlayerController : MonoBehaviour {
     if (_jumpTimer <= 0f && (_playerState == PlayerState.Falling || _playerState == PlayerState.Jumping)) {
       RaycastHit2D bottomHit = CastInDirection(RayCastRadius, Vector2.down, RayCastDistance, _groundMask);
       
+      RaycastHit2D topHit = CastInDirection(RayCastRadius, Vector2.up, RayCastDistance, _headBumpMask);
+      
       RaycastHit2D rightHit = CastInDirection(RayCastRadius, Vector2.right, RayCastDistance, _wallClingMask);
       
       RaycastHit2D leftHit = CastInDirection(RayCastRadius, Vector2.left, RayCastDistance, _wallClingMask);
@@ -191,6 +200,8 @@ public class PlayerController : MonoBehaviour {
       }
       
       if (bottomHit) {
+        _headBump = false;
+        
         _layerBeneath = bottomHit.collider.gameObject.layer;
 
         _jumps = 0;
@@ -200,6 +211,10 @@ public class PlayerController : MonoBehaviour {
         _playerState = PlayerState.Idle;
       } else {
         _layerBeneath = -1;
+      }
+
+      if (topHit) { // kill the current jump
+        _headBump = true;
       }
     }
   }
@@ -224,7 +239,9 @@ public class PlayerController : MonoBehaviour {
     
     DrawHit(leftHit, Vector2.left);
     
-    // GroundRayCastDetection();
+    RaycastHit2D topHit = CastInDirection(RayCastRadius, Vector2.up, RayCastDistance, _headBumpMask);
+    
+    DrawHit(topHit, Vector2.up);
   }
 
   private void DrawHit(RaycastHit2D hit, Vector2 direction) {

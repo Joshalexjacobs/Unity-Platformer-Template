@@ -948,6 +948,9 @@ MonoBehaviour:
   _wallClingMask:
     serializedVersion: 2
     m_Bits: 384
+  _headBumpMask:
+    serializedVersion: 2
+    m_Bits: 448
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
