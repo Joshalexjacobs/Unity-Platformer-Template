@@ -28,6 +28,10 @@ public class PlayerController : MonoBehaviour {
   private float _jumpLength = 0f; // how high you can jump depending on how long you hold down jump 
 
   private bool _canTriggerNewJump = true; // forces the player to let go of the jump button in order to jump again
+
+  private int _jumps = 0;
+
+  private int _maxJumps = 2;
   
   private float _graceJumpPeriod = 0f; // grace period for jumping after walking off a ledge
   
@@ -53,6 +57,10 @@ public class PlayerController : MonoBehaviour {
         _jumpTimer = 0.5f;
 
         ControllerUtils.IgnorePlatformCollision();
+      } else if (_playerState == PlayerState.Jumping  && _jumps < _maxJumps) {
+        _rigidbody2D.AddForce(new Vector2(0f, 0.5f) * _jumpStrength);
+
+        TriggerJump();
       }
     };
 
@@ -60,7 +68,10 @@ public class PlayerController : MonoBehaviour {
   }
 
   private void TriggerJump() {
-    _canTriggerNewJump = false;
+    _jumps++;
+    
+    if (_jumps >= _maxJumps)
+      _canTriggerNewJump = false;
     
     _playerState = PlayerState.Jumping;
         
@@ -107,14 +118,9 @@ public class PlayerController : MonoBehaviour {
     if (_jumpTimer > 0f)
       _jumpTimer -= Time.deltaTime;
 
-    if (_jumpLength > 0f) {
+    if (_jumpLength > 0f) 
       _jumpLength -= Time.deltaTime;
 
-      if (_jumpLength <= 0f && _playerState == PlayerState.Jumping) {
-        _playerState = PlayerState.Falling;
-      }
-    }
-    
     if (_graceJumpPeriod > 0f)
       _graceJumpPeriod -= Time.deltaTime;
   }
@@ -133,6 +139,8 @@ public class PlayerController : MonoBehaviour {
       
       if (hit) {
         _layer = hit.collider.gameObject.layer;
+
+        _jumps = 0;
         
         ControllerUtils.IgnorePlatformCollision(false);
 
