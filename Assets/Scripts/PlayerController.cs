@@ -32,6 +32,8 @@ public class PlayerController : MonoBehaviour {
   private float _graceJumpPeriod = 0f; // grace period for jumping after walking off a ledge
   
   [SerializeField] private LayerMask _groundMask;
+
+  private int _layer = -1;
   
   private Vector2 _movementInput;
 
@@ -40,6 +42,18 @@ public class PlayerController : MonoBehaviour {
     
     _playerActions.Player.Move.performed += context => {
       _movementInput = context.ReadValue<Vector2>();
+    };
+    
+    _playerActions.Player.Jump.performed += context => {
+      if (_layer == ControllerUtils.PlatformLayer && Math.Abs(_movementInput.y - (-1)) < 0.01f) {
+        _playerState = PlayerState.Falling;
+        
+        _canTriggerNewJump = false;
+        
+        _jumpTimer = 0.5f;
+
+        ControllerUtils.IgnorePlatformCollision();
+      }
     };
 
     _jumpButtonControls = ControllerUtils.InitializeButtonControls(_playerActions.Player.Jump.controls);
@@ -118,7 +132,14 @@ public class PlayerController : MonoBehaviour {
       RaycastHit2D hit = Physics2D.CircleCast(transform.position, GroundRayCastRadius, Vector2.down, GroundRayCastDistance, _groundMask);
       
       if (hit) {
+        _layer = hit.collider.gameObject.layer;
+        
+        ControllerUtils.IgnorePlatformCollision(false);
+
         _playerState = PlayerState.Idle;
+      }
+      else {
+        _layer = -1;
       }
     }
   }

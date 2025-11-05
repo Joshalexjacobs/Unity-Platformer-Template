@@ -60,6 +60,17 @@
                     "isPartOfComposite": true
                 },
                 {
+                    "name": "Down",
+                    "id": "08ffc039-448e-4ff3-a9cd-22f49415e537",
+                    "path": "<Keyboard>/s",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": ";Keyboard&Mouse",
+                    "action": "Move",
+                    "isComposite": false,
+                    "isPartOfComposite": true
+                },
+                {
                     "name": "",
                     "id": "136cc420-588a-4b1e-8282-29fca40aa6d5",
                     "path": "<Keyboard>/space",
