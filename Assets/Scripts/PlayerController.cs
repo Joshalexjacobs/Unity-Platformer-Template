@@ -8,7 +8,8 @@ public class PlayerController : MonoBehaviour {
     Idle, // grounded not moving
     Walking, // grounded moving
     Jumping, // pressed jump, hasn't touched ground yet
-    Falling // didn't press jump, velocity of y is negative
+    Falling, // didn't press jump, velocity of y is negative
+    WallClinging, // player is clinging to a wall
   }
 
   [SerializeField] private PlayerState _playerState = PlayerState.Idle;
@@ -18,6 +19,8 @@ public class PlayerController : MonoBehaviour {
   private ButtonControl[] _jumpButtonControls;
 
   [SerializeField] private Rigidbody2D _rigidbody2D;
+  
+  [SerializeField] private BoxCollider2D _boxCollider2D;
 
   [SerializeField] private float _movementSpeed = 4;
   
@@ -34,10 +37,16 @@ public class PlayerController : MonoBehaviour {
   private int _maxJumps = 2;
   
   private float _graceJumpPeriod = 0f; // grace period for jumping after walking off a ledge
+
+  private int _wallClingingDirection = 0;
+
+  private float _wallClingTimer = 0f;
   
   [SerializeField] private LayerMask _groundMask;
+  
+  [SerializeField] private LayerMask _wallClingMask;
 
-  private int _layer = -1;
+  private int _layerBeneath = -1;
   
   private Vector2 _movementInput;
 
@@ -49,7 +58,19 @@ public class PlayerController : MonoBehaviour {
     };
     
     _playerActions.Player.Jump.performed += context => {
-      if (_layer == ControllerUtils.PlatformLayer && Math.Abs(_movementInput.y - (-1)) < 0.01f) {
+      if (_wallClingTimer > 0f) return;
+      
+      if (_playerState == PlayerState.WallClinging) {
+        _rigidbody2D.AddForce(new Vector2(_wallClingingDirection == 1 ? 25 : -25, 50) * _jumpStrength);
+
+        _wallClingTimer = 0.15f;
+
+        TriggerJump();
+
+        return;
+      }
+      
+      if (_layerBeneath == ControllerUtils.PlatformLayer && Math.Abs(_movementInput.y - (-1)) < 0.01f) {
         _playerState = PlayerState.Falling;
         
         _canTriggerNewJump = false;
@@ -81,6 +102,10 @@ public class PlayerController : MonoBehaviour {
   }
 
   private float HandleJump() {
+    if (_playerState == PlayerState.WallClinging) {
+      return _rigidbody2D.linearVelocity.y / 2;
+    }
+    
     if (ControllerUtils.IsButtonDown(_jumpButtonControls)) {
       if (_canTriggerNewJump && _playerState != PlayerState.Jumping && _playerState != PlayerState.Falling) {
         TriggerJump();
@@ -123,10 +148,18 @@ public class PlayerController : MonoBehaviour {
 
     if (_graceJumpPeriod > 0f)
       _graceJumpPeriod -= Time.deltaTime;
+
+    if (_wallClingTimer > 0f)
+      _wallClingTimer -= Time.deltaTime;
+  }
+
+  private RaycastHit2D CastInDirection(float radius, Vector2 direction, float distance, LayerMask mask) {
+    return Physics2D.CircleCast(transform.position, radius, direction, distance, mask);
   }
 
   private void FixedUpdate() {
-    _rigidbody2D.linearVelocity = HandleControllerMovement();
+    if (_wallClingTimer <= 0f)
+      _rigidbody2D.linearVelocity = HandleControllerMovement();
 
     if (_rigidbody2D.linearVelocity.y < 0 && _playerState != PlayerState.Jumping && _playerState != PlayerState.Falling) {
       _graceJumpPeriod = 0.15f;
@@ -135,47 +168,74 @@ public class PlayerController : MonoBehaviour {
     }
     
     if (_jumpTimer <= 0f && (_playerState == PlayerState.Falling || _playerState == PlayerState.Jumping)) {
-      RaycastHit2D hit = Physics2D.CircleCast(transform.position, GroundRayCastRadius, Vector2.down, GroundRayCastDistance, _groundMask);
+      RaycastHit2D bottomHit = CastInDirection(RayCastRadius, Vector2.down, RayCastDistance, _groundMask);
       
-      if (hit) {
-        _layer = hit.collider.gameObject.layer;
+      RaycastHit2D rightHit = CastInDirection(RayCastRadius, Vector2.right, RayCastDistance, _wallClingMask);
+      
+      RaycastHit2D leftHit = CastInDirection(RayCastRadius, Vector2.left, RayCastDistance, _wallClingMask);
+
+      if (rightHit && (rightHit.collider.CompareTag("Platform") || rightHit.collider.CompareTag("Wall")) && Math.Abs(_movementInput.x - 1) < 0.1f) {
+        _wallClingingDirection = -1;
+        
+        _playerState = PlayerState.WallClinging;
+        
+        _jumps = 0;
+      } else if (leftHit && (leftHit.collider.CompareTag("Platform") || leftHit.collider.CompareTag("Wall")) && Math.Abs(_movementInput.x - (-1)) < 0.1f) {
+        _wallClingingDirection = 1;
+        
+        _playerState = PlayerState.WallClinging;
+        
+        _jumps = 0;
+      } else {
+        _wallClingingDirection = 0;
+      }
+      
+      if (bottomHit) {
+        _layerBeneath = bottomHit.collider.gameObject.layer;
 
         _jumps = 0;
         
         ControllerUtils.IgnorePlatformCollision(false);
 
         _playerState = PlayerState.Idle;
-      }
-      else {
-        _layer = -1;
+      } else {
+        _layerBeneath = -1;
       }
     }
   }
 
   // collision detection
 
-  private const float GroundRayCastRadius = 0.3f;
-  private const float GroundRayCastDistance = 0.3f;
+  private const float RayCastRadius = 0.3f;
+  private const float RayCastDistance = 0.3f;
 
   // gizmos
   
   private void OnDrawGizmos() {
-    GroundRayCastDetection();
+    RaycastHit2D bottomHit = CastInDirection(RayCastRadius, Vector2.down, RayCastDistance, _groundMask);
+      
+    DrawHit(bottomHit, Vector2.down);
+    
+    RaycastHit2D rightHit = CastInDirection(RayCastRadius, Vector2.right, RayCastDistance, _wallClingMask);
+      
+    DrawHit(rightHit, Vector2.right);
+    
+    RaycastHit2D leftHit = CastInDirection(RayCastRadius, Vector2.left, RayCastDistance, _wallClingMask);
+    
+    DrawHit(leftHit, Vector2.left);
+    
+    // GroundRayCastDetection();
   }
 
-  private void GroundRayCastDetection() {
-    Vector2 origin = transform.position;
-    Vector2 direction = Vector2.down;
-    
-    RaycastHit2D hit = Physics2D.CircleCast(origin, GroundRayCastRadius, direction, GroundRayCastDistance, _groundMask);
-
+  private void DrawHit(RaycastHit2D hit, Vector2 direction) {
     Gizmos.color = hit ? Color.green : Color.red;
-    Gizmos.DrawLine(origin, origin + direction * GroundRayCastDistance);
-    Gizmos.DrawWireSphere(origin + direction * GroundRayCastDistance, GroundRayCastRadius);
+    Gizmos.DrawLine(transform.position, (Vector2) transform.position + direction * RayCastDistance);
+    
+    Gizmos.DrawWireSphere((Vector2) transform.position + direction * RayCastDistance, RayCastRadius);
 
     if (hit) {
       Gizmos.color = Color.yellow;
-      Gizmos.DrawWireSphere(hit.point, GroundRayCastRadius);
+      Gizmos.DrawWireSphere(hit.point, RayCastRadius);
     }
   }
 
