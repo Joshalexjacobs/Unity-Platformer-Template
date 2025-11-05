@@ -1,10 +1,10 @@
 using System;
 using UnityEngine;
+using UnityEngine.Events;
 using UnityEngine.InputSystem.Controls;
 
 public class PlayerController : MonoBehaviour {
-
-  enum PlayerState {
+  public enum PlayerState {
     Idle, // grounded not moving
     Walking, // grounded moving
     Jumping, // pressed jump, hasn't touched ground yet
@@ -12,7 +12,9 @@ public class PlayerController : MonoBehaviour {
     WallClinging, // player is clinging to a wall
   }
 
-  [SerializeField] private PlayerState _playerState = PlayerState.Idle;
+  public PlayerState playerState = PlayerState.Idle;
+
+  public UnityEvent onJumpEvent; 
   
   private PlayerInputActions _playerActions;
   
@@ -32,13 +34,13 @@ public class PlayerController : MonoBehaviour {
 
   private bool _canTriggerNewJump = true; // forces the player to let go of the jump button in order to jump again
 
-  private int _jumps = 0;
+  public int jumps = 0;
 
   private int _maxJumps = 2;
   
   private float _graceJumpPeriod = 0f; // grace period for jumping after walking off a ledge
 
-  private int _wallClingingDirection = 0;
+  public int wallClingingDirection = 0;
 
   private float _wallClingTimer = 0f;
 
@@ -64,8 +66,8 @@ public class PlayerController : MonoBehaviour {
     _playerActions.Player.Jump.performed += context => {
       if (_wallClingTimer > 0f) return;
       
-      if (_playerState == PlayerState.WallClinging) {
-        _rigidbody2D.AddForce(new Vector2(_wallClingingDirection == 1 ? 25 : -25, 50) * _jumpStrength);
+      if (playerState == PlayerState.WallClinging) {
+        _rigidbody2D.AddForce(new Vector2(wallClingingDirection == 1 ? 25 : -25, 50) * _jumpStrength);
 
         _wallClingTimer = 0.15f;
 
@@ -75,14 +77,14 @@ public class PlayerController : MonoBehaviour {
       }
       
       if (_layerBeneath == ControllerUtils.PlatformLayer && Math.Abs(_movementInput.y - (-1)) < 0.01f) {
-        _playerState = PlayerState.Falling;
+        playerState = PlayerState.Falling;
         
         _canTriggerNewJump = false;
         
         _jumpTimer = 0.5f;
 
         ControllerUtils.IgnorePlatformCollision();
-      } else if (_playerState == PlayerState.Jumping  && _jumps < _maxJumps) {
+      } else if (playerState == PlayerState.Jumping  && jumps < _maxJumps) {
         _rigidbody2D.AddForce(new Vector2(0f, 0.5f) * _jumpStrength);
 
         TriggerJump();
@@ -93,11 +95,13 @@ public class PlayerController : MonoBehaviour {
   }
 
   private void TriggerJump() {
-    _jumps++;
+    jumps++;
+    
+    onJumpEvent.Invoke();
     
     _canTriggerNewJump = false;
     
-    _playerState = PlayerState.Jumping;
+    playerState = PlayerState.Jumping;
         
     _jumpTimer = 0.2f;
     
@@ -105,7 +109,7 @@ public class PlayerController : MonoBehaviour {
   }
 
   private float HandleJump() {
-    if (_playerState == PlayerState.WallClinging) {
+    if (playerState == PlayerState.WallClinging) {
       return _rigidbody2D.linearVelocity.y / 1.5f;
     }
 
@@ -114,20 +118,20 @@ public class PlayerController : MonoBehaviour {
     }
     
     if (ControllerUtils.IsButtonDown(_jumpButtonControls)) {
-      if (_canTriggerNewJump && _playerState != PlayerState.Jumping && _playerState != PlayerState.Falling) {
+      if (_canTriggerNewJump && playerState != PlayerState.Jumping && playerState != PlayerState.Falling) {
         TriggerJump();
 
         return _jumpStrength;
-      } else if (_playerState == PlayerState.Jumping && _jumpLength > 0f) {
+      } else if (playerState == PlayerState.Jumping && _jumpLength > 0f) {
         return _jumpStrength;
-      } else if (_canTriggerNewJump && _playerState == PlayerState.Falling && _graceJumpPeriod > 0f) {
+      } else if (_canTriggerNewJump && playerState == PlayerState.Falling && _graceJumpPeriod > 0f) {
         TriggerJump();
         
         return _jumpStrength;
       }
-    } else if (_playerState == PlayerState.Jumping) {
+    } else if (playerState == PlayerState.Jumping) {
       _jumpLength = 0f;
-    } else if (_canTriggerNewJump == false && (_playerState == PlayerState.Idle || _playerState == PlayerState.Walking)) {
+    } else if (_canTriggerNewJump == false && (playerState == PlayerState.Idle || playerState == PlayerState.Walking)) {
       _canTriggerNewJump = true;
     }
 
@@ -137,10 +141,10 @@ public class PlayerController : MonoBehaviour {
   private Vector2 HandleControllerMovement() {
     float x = _movementInput.x * _movementSpeed;
 
-    if (_playerState == PlayerState.Idle && (x > 0.01 || x < -0.01)) {
-      _playerState = PlayerState.Walking;
-    } else if (_playerState == PlayerState.Walking && x < 0.01 && x > -0.01) {
-      _playerState = PlayerState.Idle;
+    if (playerState == PlayerState.Idle && (x > 0.01 || x < -0.01)) {
+      playerState = PlayerState.Walking;
+    } else if (playerState == PlayerState.Walking && x < 0.01 && x > -0.01) {
+      playerState = PlayerState.Idle;
     }
     
     return new Vector2(x, HandleJump());
@@ -168,13 +172,13 @@ public class PlayerController : MonoBehaviour {
     if (_wallClingTimer <= 0f)
       _rigidbody2D.linearVelocity = HandleControllerMovement();
 
-    if (_rigidbody2D.linearVelocity.y < 0 && _playerState != PlayerState.Jumping && _playerState != PlayerState.Falling) {
+    if (_rigidbody2D.linearVelocity.y < 0 && playerState != PlayerState.Jumping && playerState != PlayerState.Falling) {
       _graceJumpPeriod = 0.15f;
       
-      _playerState = PlayerState.Falling;
+      playerState = PlayerState.Falling;
     }
     
-    if (_jumpTimer <= 0f && (_playerState == PlayerState.Falling || _playerState == PlayerState.Jumping)) {
+    if (_jumpTimer <= 0f && (playerState == PlayerState.Falling || playerState == PlayerState.Jumping)) {
       RaycastHit2D bottomHit = CastInDirection(RayCastRadius, Vector2.down, RayCastDistance, _groundMask);
       
       RaycastHit2D topHit = CastInDirection(RayCastRadius, Vector2.up, RayCastDistance, _headBumpMask);
@@ -184,19 +188,19 @@ public class PlayerController : MonoBehaviour {
       RaycastHit2D leftHit = CastInDirection(RayCastRadius, Vector2.left, RayCastDistance, _wallClingMask);
 
       if (rightHit && (rightHit.collider.CompareTag("Platform") || rightHit.collider.CompareTag("Wall")) && Math.Abs(_movementInput.x - 1) < 0.1f) {
-        _wallClingingDirection = -1;
+        wallClingingDirection = -1;
         
-        _playerState = PlayerState.WallClinging;
+        playerState = PlayerState.WallClinging;
         
-        _jumps = 0;
+        jumps = 0;
       } else if (leftHit && (leftHit.collider.CompareTag("Platform") || leftHit.collider.CompareTag("Wall")) && Math.Abs(_movementInput.x - (-1)) < 0.1f) {
-        _wallClingingDirection = 1;
+        wallClingingDirection = 1;
         
-        _playerState = PlayerState.WallClinging;
+        playerState = PlayerState.WallClinging;
         
-        _jumps = 0;
+        jumps = 0;
       } else {
-        _wallClingingDirection = 0;
+        wallClingingDirection = 0;
       }
       
       if (bottomHit) {
@@ -204,11 +208,11 @@ public class PlayerController : MonoBehaviour {
         
         _layerBeneath = bottomHit.collider.gameObject.layer;
 
-        _jumps = 0;
+        jumps = 0;
         
         ControllerUtils.IgnorePlatformCollision(false);
 
-        _playerState = PlayerState.Idle;
+        playerState = PlayerState.Idle;
       } else {
         _layerBeneath = -1;
       }

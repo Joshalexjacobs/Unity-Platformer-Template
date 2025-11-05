@@ -7,6 +7,7 @@ TagManager:
   - Ground
   - Platform
   - Wall
+  - Hazard
   layers:
   - Default
   - TransparentFX
@@ -17,7 +18,7 @@ TagManager:
   - Ground
   - Platform
   - Wall
-  - 
+  - Hazard
   - 
   - 
   - 
@@ -43,6 +44,9 @@ TagManager:
   m_SortingLayers:
   - name: Default
     uniqueID: 0
+    locked: 0
+  - name: Foreground
+    uniqueID: 2848070273
     locked: 0
   m_RenderingLayers:
   - Default
