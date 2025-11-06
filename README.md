@@ -1,6 +1,8 @@
 # Unity Platformer Template
 A quick and dirty Unity project that acts as a jumping off point for anyone looking to make a simple 2D platformer.
 
+![Demo Level in action](https://github.com/Joshalexjacobs/Unity-Platformer-Template/blob/main/ezgif-380d71e0405b396f.gif?raw=true)
+
 ## Features
 - Basic player state management (Idle, Walking, Jumping, Falling, and WallClinging)
 - Variable jump
