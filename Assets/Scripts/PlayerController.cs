@@ -4,6 +4,7 @@ using UnityEngine.Events;
 using UnityEngine.InputSystem.Controls;
 
 public class PlayerController : MonoBehaviour {
+  
   public enum PlayerState {
     Idle, // grounded not moving
     Walking, // grounded moving
@@ -21,8 +22,6 @@ public class PlayerController : MonoBehaviour {
   private ButtonControl[] _jumpButtonControls;
 
   [SerializeField] private Rigidbody2D _rigidbody2D;
-  
-  [SerializeField] private BoxCollider2D _boxCollider2D;
 
   [SerializeField] private float _movementSpeed = 4;
   

@@ -11,6 +11,8 @@ public class Player : MonoBehaviour {
 
   [SerializeField] private GameObject _sprite;
 
+  [SerializeField] private GameObject _eyeSprite;
+
   [SerializeField] private ParticleSystem _dustParticles;
   
   [SerializeField] private ParticleSystem _burstDustParticles;
@@ -41,17 +43,27 @@ public class Player : MonoBehaviour {
     // rotate sprite in direction of player movement
     if (_rigidbody2D.linearVelocity.x > 0.01f) {
       RotateSprite(-5f);
+
+      _eyeSprite.transform.localPosition = new Vector3(0.1f, _eyeSprite.transform.localPosition.y, 0f);
     } else if (_rigidbody2D.linearVelocity.x < -0.01f) {
       RotateSprite(5f);
+      
+      _eyeSprite.transform.localPosition = new Vector3(-0.1f, _eyeSprite.transform.localPosition.y, 0f);
     } else {
       RotateSprite(0f);
+      
+      _eyeSprite.transform.localPosition = new Vector3(0f, _eyeSprite.transform.localPosition.y, 0f);
     }
 
     if (_playerController.playerState == PlayerController.PlayerState.WallClinging) {
       if (_playerController.wallClingingDirection == 1) {
         RotateSprite(-5f);
+        
+        _eyeSprite.transform.localPosition = new Vector3(0.1f, _eyeSprite.transform.localPosition.y, 0f);
       } else {
         RotateSprite(5f);
+        
+        _eyeSprite.transform.localPosition = new Vector3(-0.1f, _eyeSprite.transform.localPosition.y, 0f);
       }
     }
     
